@@ -23,15 +23,34 @@ export const GET = async (req: NextRequest) => {
     'User-Agent',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko), Shiro',
   )
-  headers.set('Authorization', `Bearer ${process.env.GH_TOKEN}`)
 
-  if (!process.env.GH_TOKEN) {
-    return NextResponse.error()
+  const token = process.env.GH_TOKEN?.trim()
+  if (!token) {
+    return NextResponse.json(
+      { message: 'GH_TOKEN is not set' },
+      { status: 500 },
+    )
   }
 
-  const response = await fetch(url, {
-    headers,
-  })
-  const data = await response.json()
-  return NextResponse.json(data)
+  headers.set('Authorization', `Bearer ${token}`)
+
+  try {
+    const response = await fetch(url, { headers })
+    const body = await response.text()
+    const contentType =
+      response.headers.get('content-type') ?? 'application/json'
+
+    return new Response(body, {
+      status: response.status,
+      headers: {
+        'content-type': contentType,
+      },
+    })
+  } catch (error) {
+    console.error('[api/gh] proxy request failed', error)
+    return NextResponse.json(
+      { message: 'GitHub proxy request failed' },
+      { status: 502 },
+    )
+  }
 }
